@@ -1,0 +1,329 @@
+<topics
+    xmlns:r="http://www.r-project.org"
+    xmlns:omg="http://www.omegahat.org">
+
+<topic>
+  <title>
+    RCUDA Todo List
+  </title>
+
+  <items>
+
+    <item status="done">
+      tests/doubleFloat.R - failing with the floats. Getting the wrong answer.
+      Need .numericAsDouble to cover all parameters, not just the numeric ones.
+      So needed one for the length(x) as well as the x and out.
+    </item>
+
+
+
+    <item>
+      cuDeviceGetAttribute -
+      CU_DEVICE_ATTRIBUTE_COMPUTE_MODE returns an enum. We need to map it to the R name-value pair.
+      <item>
+        cuDeviceGetAttribute - put the name of the attibute queried on the result.
+        Unfortunately, it is auto created so we'd have to intercede there, i.e., using typeMap
+        or hardcoding how to convert these types of requests in cuda.createNativeProxy().
+      </item>
+      <item>
+        Set the default device to 1 for cuDeviceGetName() and others like it.
+      </item>
+      <item>
+        Make the names of the functions consistent
+        getDeviceProperties versus cuDeviceGetAttributes.
+        getDeviceProperties uses a deprecated function, so just kill off.
+        Different choices for approach.
+      </item>
+
+      <item>
+        R_cuModuleGetFunction doesn't seem to return the function.
+        Instead it seems to expect a CUfunction pointer when this is probably the return value.
+        The function isOutPointerType is the culprit and we explicitly identify pointers to CUfunction as not out arguments in
+        that function! (See the return() expression.)
+        <br/>
+        What routines have a parameter that is a pointer to a CUfunction?
+        <r:code>
+          rc = r [ grep("/cuda/", sapply(r, getFileName)) ]
+        </r:code>
+        <r:code><![CDATA[
+          isCUfunction = function(ty) isPointerType(ty) && getName(getPointeeType(ty)) == "CUfunction"
+          i = sapply(rc, function(f) any(sapply(f@params, function(cur) isCUfunction(getType(cur)))))
+          ]]></r:code>
+        So only one!  The other routines take a CUfunction value, not a pointer to one. So this is an out argument.
+        <br/>
+        If we remove the CUfunction from the vector of special names,
+        <r:expr>cuda.createNativeProxy(rc$cuModuleGetFunction)</r:expr>
+        almost behaves. The CUfunction is allocated on the stack. Is this okay?
+        <br/>
+        But what about the other routines.
+        <r:code>
+          isCUfunction = function(ty) getName(ty) == "CUfunction"
+          i = sapply(rc, function(f) any(sapply(f@params, function(cur) isCUfunction(getType(cur)))))
+          lapply(rc[i], cuda.createNativeProxy)
+        </r:code>
+        <br/>
+        A CUfunction is already a pointer to a CUfunc_st. But this is irrelevant.
+      </item>
+
+      <item>
+        Finish off generating the documents for the functions and classes (enums) not documented.
+        <br/>
+        Enhance the return/value to mirror what we do in the R code, not the  C declarations and their documentation.
+      </item>
+
+      <!-- From TODO -->
+      <item status="done"> Turn on USE_S4_ENUMS in src/Makevars.in</item>
+
+      <item>Process only the routines and data structures related to the host/CPU
+        ignore the ones for use on the device/GPU
+        Are all of the routines in the library for the host?
+      </item>
+
+      <item>Should we remove the cuda/cublas prefix from the names of the R functions.</item>
+
+      <item status="done"> Copy the converter code from RAutoGenRuntime into the package.</item>
+
+      <item>Change the class of the bitwise enum types that are wrong.
+        only CUarray_format_enum
+      </item>
+
+      <item>Generate routines.
+        <br/>
+        See TU/clang.R
+      </item>
+
+      <item>
+        Remove the code from inst/generateCode.
+      </item>
+
+      <item status="finish">
+        Put a version check on the enums.
+        <br/>
+        In configure.in and onLoad.R
+      </item>
+
+
+      <item status="complete">
+        global option to use double rather than float.
+        And use it everywhere. Connect to strict for cudaMalloc.
+      </item>
+
+      <item status="done">
+        copy to device for a numeric comes back with size of the elements being 8
+        and type double. Should this be 4 and float.
+        See tests/doubleFloat.R
+      </item>
+
+      <item status="done">
+        If GPU supports double, then don't use float.
+        (Change the type in cudaMalloc and add code for copying doubles.)
+      </item>
+
+      <item>
+        seg faulting when quitting out of R, at least on lipschitz.
+        <br/>
+        Could it be the version of gcc, R, etc. No, looks like CUDA library issue.
+        <br/>
+        If we allocate memory, we don't get the segfault.
+        So I've added a C routine we call in .onLoad()
+        to create the context and allocate a byte.
+        <br/>
+        Looks like a clean up issue in libcuruntime.
+        Similar issue in pycuda but with libcudarand.
+      </item>
+
+      <item status="done">
+        test synchronization.
+        See tests/async.R
+      </item>
+
+      <item>
+        Finalizer on the stream.
+      </item>
+
+      <item>
+        Copy asynchronously.
+        Does this make sense in R.
+        Use pinned memory allocated with cudaMallocHost().
+      </item>
+
+      <item status="working">
+        streams - queues of tasks.
+        Example - distances and then  clustering. Get the gputools kernels working
+        for the hierarchical clustering.
+      </item>
+
+      <item status="done">
+        Events on streams. Do they make sense in R, i.e. single thread?
+        Yes.
+        Can use a single routine and a call the R function as user data for callbacks.
+        See tests/event.R tests/eventSync.R
+      </item>
+
+      <item>
+        Implement cuCtxGetStreamPriorityRange and any other routines.
+        Just have the one for the Device, not the Ctx
+      </item>
+
+      <item status="check">
+        cudaMalloc() etc. should return an object derived from cudaPtrWithLength
+        so we know the size.
+      </item>
+
+      <item>
+        Problem when checking tag on a reference.
+        Specifically void and voidPtr.
+        See inst/doc/distPitch.R.
+        <r:code>
+          library(RCUDA)
+          m = matrix(as.numeric(1:20), 5, 4)
+          mem = cudaMallocPitch(ncol(m) * 4L, nrow(m))
+          ref = convertToPtr(t(m), "float")
+
+          cudaMemcpy2D(mem[[1]], mem[[2]], ref, ncol(m)*4L, ncol(m)*4L, nrow(m), cudaMemcpyHostToDevice)
+          cudaMemcpy2D(ref, mem[[2]], mem[[1]], ncol(m)*4L, ncol(m)*4L, nrow(m), cudaMemcpyDeviceToHost)
+        </r:code>
+        <br/>
+        We can disable this test on the tag but it would be better  to get it right and consistent, not a special case
+        or string comparisons on the tag.
+      </item>
+
+      <item status="done">
+        cudaMemcpy2D should coerce to a voidPtr, not a void.
+        Fixed in the  makeCoerceArg function in the RCodeGen package.
+      </item>
+
+      <item status="check">
+        Need a mechanism to convert R object to pointer in cudaMemcpy2D, i.e. the src
+        See convertToPtr.
+        Checked for float.
+      </item>
+
+      <item>
+        AB = matrix(1:(300*299), 300, 299)
+        mem = cudaMallocPitch( ncol(AB) * 4L,  nrow(AB))
+        RCUDA:::cudaMemcpy2D(mem[[1]], mem[[2]], t(AB), nrow(AB)*4L, nrow(AB)*4L, ncol(AB), RCUDA:::cudaMemcpyHostToDevice)
+        <br/>
+        Fails trying to coerce the matrix to a voidPtr.
+        Should this be a void. But still no method to coerce R object to void.
+      </item>
+
+      <item status="done">
+        [Check]  Higher-level R-like functions for cudaMallocPitch &amp; cudaMemcpy2D
+        See inst/doc/distPitch.R
+      </item>
+
+      <item status="check">
+        cudaMemcpy2D should raise an error if the C routine doesn't return 0.
+        The C routine returns an object of class cudaError_t.
+        This is different CUresult.
+        So we have to generate the code differently to understand which
+        error type it is getting.
+      </item>
+
+
+      <item>
+        Make the code that expects a device number consistently us as(, "CUDeviceNum") or as (, "CUdevice").
+        Auto-generated code such as cudaDeviceGetPCIBusId causes problems as the declaration is integer.
+        Also, cuDeviceGet() gets back the correct number but then calls as(num, "CUdevice") which decrements
+        the value so it is wrong. When we get back from C code, we should leave it as is.
+        So new("CUdevice", value) or have the C code do it.
+        When the device is an argument, then do the subtraction.
+
+        <item status="check">
+          integer to CUdevice should subtract 1.
+          And when reutrn a CUdevice, put a class on it
+          so that we keep it as is when we pass it to an
+          R function/C routine.
+          Put this in the typeMap.
+        </item>
+
+      </item>
+
+      <item status="optimize">
+        Subsetting and assigning to parts of a cudaPtrWithLength.
+        subsetting done - integer, logical indices.
+        Subset assignment not done
+      </item>
+
+      <item status="low">
+        Show how to use structs in PTX code and pass them from R as inputs.
+      </item>
+
+      <item status="low">
+        Allow obj[] to take a routine to copy each element to a SEXP.
+        Caller specifies a native symbol.
+      </item>
+
+      <item status="low">
+        cudaMalloc should allow specification of the device.
+        Implicit in the current context?
+      </item>
+
+      <item status="low">
+        Allow .device/.gpu argument in .gpu/.cuda function to switch
+        to a specific device. Probably too much overhead for common use.
+      </item>
+
+      <item status="done">
+        In cuGetContext(), check if cuCtxGetCurrent returns a NULL pointer, not a NULL object.
+        <br/>
+        Move C code and R function to RAutoGenRunTime.
+        Isn't this already done - isNativeNull?
+      </item>
+
+      <item status="check">
+        Make certain to clean up so don't run out of memory across sessions.
+        If quit R, want to release resources.
+      </item>
+
+      <item status="done">
+        Examples - perhaps taken from gputools or rgpu
+        but done directly  from R code, not with C wrappers.
+        <br/>
+        See dist stuff in sampleKernels and  Paper/
+      </item>
+
+      <item status="test">
+        Configure script.
+      </item>
+
+      <item status="InProgress">
+        Generate bindings via TU and Clang
+        <br/>
+        Ignore the deprecated ones. How can we tell in clang.
+        <br/>
+        Add default arguments for types such as the device to be 1L or new("CUdevice", 0L).
+      </item>
+
+      <item>
+        Functions to manipulate module.
+        Anyway  to find names in a module?
+        In a C++ API - http://adsm.googlecode.com/svn/trunk/libgmac/src/api/cudadrv/Module.h.
+      </item>
+
+      <item status="low">
+        Write function for reading profiler in key=value  form.
+      </item>
+
+      <item status="done">
+        Profiler
+      </item>
+
+      <item status="check">
+        Class information on the cudaAlloc() returns so that
+        we know how to retrieve the result later.
+        Put length information on it also.
+        Make them RC++Reference and not just external pointers.
+      </item>
+
+
+      <item status="done">
+        Find out what the problem is with cubin files and not being able to load them.
+        <br/>
+        Need to get the nvcc flags to generate code for the correct device.
+      </item>
+    </item>
+  </items>
+</topic>
+</topics>

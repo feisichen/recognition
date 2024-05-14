@@ -1,0 +1,35 @@
+卷 DATA 的文件夹 PATH 列表
+卷序列号为 E514-1EE2
+D:.
+|   codeTree.txt
+|   
++---java
+|   \---com
+|       \---example
+|           \---demo
+|               |   DemoApplication.java
+|               |   
+|               +---common
+|               |       MybatisPlusConfig.java
+|               |       Result.java
+|               |       
+|               +---controller
+|               |       Bookcontroller.java
+|               |       Filecontroller.java
+|               |       ocrapi.java
+|               |       Usercontroller.java
+|               |       
+|               +---entity
+|               |       Book.java
+|               |       User.java
+|               |       
+|               \---mapper
+|                       BookMapper.java
+|                       UserMapper.java
+|                       
+\---resources
+    |   application.properties
+    |   
+    \---mappers
+            DepartmentMapper.xml
+            

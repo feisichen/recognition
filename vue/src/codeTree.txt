@@ -1,0 +1,55 @@
+卷 DATA 的文件夹 PATH 列表
+卷序列号为 E514-1EE2
+D:.
+|   App.vue
+|   codeTree.txt
+|   main.js
+|   
++---assets
+|       0.png
+|       1.png
+|       123.jpg
+|       2.png
+|       3.jpg
+|       bg1.png
+|       home-banner.jpg
+|       loginBg.jpg
+|       loginBg3.jpg
+|       preview.png
+|       preview0.jpg
+|       preview1.jpg
+|       preview12.png
+|       preview2.gif
+|       preview2.jpg
+|       preview5.jpg
+|       test.pdf
+|       
++---components
+|       Header.vue
+|       
++---image
+|   \---bookcover
+|           102.jpg
+|           
++---router
+|       index.js
+|       
++---store
+|       index.js
+|       
++---utils
+|       request.js
+|       
+\---views
+        AboutView.vue
+        Book.vue
+        Bookupload.vue
+        Home.vue
+        info.vue
+        Login.vue
+        Manage.vue
+        person.vue
+        Read.vue
+        Recognition.vue
+        register.vue
+        
